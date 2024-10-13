@@ -1,11 +1,21 @@
 pub mod logger;
 pub mod metrics;
+
 pub use logger::LogsCollector;
 pub use metrics::MetricsCollector;
 
-use async_trait::async_trait;
+pub enum Collector {
+    Metrics(MetricsCollector),
+    Logs(LogsCollector),
+}
 
-#[async_trait]
-pub trait Collector: Send + Sync {
-    async fn transmit(&mut self);
+impl Collector {
+    pub fn transmit(self) {
+        tokio::spawn(async move {
+            match self {
+                Collector::Metrics(mut collector) => collector.transmit().await,
+                Collector::Logs(mut collector) => collector.transmit().await,
+            }
+        });
+    }
 }

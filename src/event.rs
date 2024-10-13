@@ -11,10 +11,10 @@ pub struct Event {
 }
 
 impl Event {
-    pub fn new_log(details: &str) -> Self {
+    pub fn new_log(details: String) -> Self {
         Self {
             event_type: EventType::Logs,
-            details: details.to_string(),
+            details,
         }
     }
     pub fn new_metric(details: &str) -> Self {

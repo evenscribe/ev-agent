@@ -3,17 +3,26 @@ mod collectors;
 mod event;
 mod runtime;
 
+use collectors::logger;
+use collectors::Collector;
+
+// mkfifo /tmp/test
+// <some-executable> 2> >(sed 's/^/stderr: /' > /tmp/test) > >(sed 's/^/stdout: /' > /tmp/test) &
+
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut rt = runtime::Runtime::new();
 
-    //TODO: There must be some better way of passing transmitters to the collectors but I am not sure how to do it.
-    rt.add_collector(Box::new(collectors::LogsCollector::new(
-        rt.get_transmitter(),
-    )));
-    rt.add_collector(Box::new(collectors::MetricsCollector::new(
-        rt.get_transmitter(),
-    )));
+    let logs_collector = Collector::Logs(
+        logger::LogsCollectorBuilder::new()
+            .with_tailer(logger::Tailer::new_np(
+                "/tmp/test".to_string(),
+                rt.get_transmitter(),
+            ))
+            .build()?,
+    );
+    rt.add_collector(logs_collector);
 
     rt.run().await;
+    Ok(())
 }

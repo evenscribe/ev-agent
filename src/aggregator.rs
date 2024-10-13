@@ -1,13 +1,13 @@
+use crate::event::Event;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 
-use crate::event::Event;
-
 pub(crate) struct Aggregator {
-    rx: mpsc::Receiver<Event>,
+    rx: mpsc::Receiver<Arc<Event>>,
 }
 
 impl Aggregator {
-    pub fn new(rx: mpsc::Receiver<Event>) -> Self {
+    pub fn new(rx: mpsc::Receiver<Arc<Event>>) -> Self {
         Self { rx }
     }
 
