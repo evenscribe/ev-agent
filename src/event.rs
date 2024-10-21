@@ -1,26 +1,23 @@
 #[derive(Debug)]
-pub enum EventType {
-    Logs,
-    Metrics,
-}
-
-#[derive(Debug)]
 pub struct Event {
-    pub(crate) event_type: EventType,
-    pub(crate) details: String, // Just a JSON BLOB for simplicity... {our open telemetry JSON or mean, sd, variance},
+    service_name: String,
+    integration_name: String,
+    data: String,
+    timestamp: i64,
 }
 
 impl Event {
-    pub fn new_log(details: String) -> Self {
-        Self {
-            event_type: EventType::Logs,
-            details,
-        }
-    }
-    pub fn new_metric(details: &str) -> Self {
-        Self {
-            event_type: EventType::Metrics,
-            details: details.to_string(),
+    pub fn new(
+        service_name: String,
+        integration_name: String,
+        data: String,
+        timestamp: i64,
+    ) -> Event {
+        Event {
+            service_name,
+            integration_name,
+            data,
+            timestamp,
         }
     }
 }
