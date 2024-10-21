@@ -1,17 +1,16 @@
+mod tailer;
+
+use crate::event::Event;
+use std::{io::SeekFrom, sync::Arc};
+use tailer::{FileTailer, Tailer};
+use tokio::sync::mpsc;
 use yaml_rust2::Yaml;
 
 #[derive(Debug)]
 pub struct LogsIntegration {
     source: LogSource,
-    path: Option<String>,
-    service_name: Option<String>,
-    start_from: StartFrom,
-}
-
-#[derive(Debug)]
-pub enum StartFrom {
-    Beginning,
-    End,
+    service_name: String, // for journald and darwinlog
+    tailer: Box<dyn Tailer>,
 }
 
 #[derive(Debug)]
@@ -19,15 +18,18 @@ pub enum LogSource {
     File,
     JournalD,
     DarwinLog,
-    // <maybe> TCP,
 }
 
 impl LogsIntegration {
-    pub fn new(config: &Yaml) -> Self {
+    pub async fn new(
+        config: &Yaml,
+        service_transmitter: mpsc::Sender<Arc<Event>>,
+        owner: &str,
+    ) -> Self {
         let mut source = None;
         let mut path = None;
         let mut service_name = None;
-        let mut start_from = StartFrom::End;
+        let mut seek_from = SeekFrom::End(0);
 
         let config = config
             .as_vec()
@@ -73,19 +75,19 @@ impl LogsIntegration {
                             _ => panic!("`service_name` field is not supported for this source"),
                         };
                     }
-                    "start_from" => {
+                    "seek_from" => {
                         if source.is_none() {
-                            panic!("`source` field should be defined before `start_from` field");
+                            panic!("`source` field should be defined before `seek_from` field");
                         }
-                        start_from = match &source {
+                        seek_from = match &source {
                             Some(LogSource::File)
                             | Some(LogSource::JournalD)
                             | Some(LogSource::DarwinLog) => match value {
-                                "beginning" => StartFrom::Beginning,
-                                "end" => StartFrom::End,
-                                _ => StartFrom::End,
+                                "beginning" => SeekFrom::Start(0),
+                                "end" => SeekFrom::End(0),
+                                _ => SeekFrom::End(0),
                             },
-                            _ => StartFrom::End,
+                            _ => SeekFrom::End(0),
                         };
                     }
                     _ => panic!("Unknown log integration property: {}", key),
@@ -93,11 +95,27 @@ impl LogsIntegration {
             }
         }
 
+        let tailer = match &source {
+            Some(LogSource::File) => Box::new(
+                FileTailer::new(
+                    path.unwrap(),
+                    owner.to_string(),
+                    seek_from,
+                    service_transmitter,
+                )
+                .await,
+            ),
+            _ => unimplemented!(),
+        };
+
         Self {
             source: source.expect("Log source is required"),
-            path,
-            service_name,
-            start_from,
+            service_name: service_name.unwrap_or_else(|| owner.to_string()),
+            tailer,
         }
+    }
+
+    pub async fn run(&mut self) {
+        self.tailer.tail().await;
     }
 }

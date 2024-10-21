@@ -1,9 +1,6 @@
 mod agent;
-mod aggregator;
-mod collectors;
 mod event;
 mod integration;
-mod runtime;
 mod service;
 
 use agent::Agent;
@@ -12,7 +9,8 @@ use agent::Agent;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let agent = Agent::new();
+    let mut agent = Agent::new().await;
+    agent.run().await?;
     println!("{:?}", agent);
     Ok(())
 }
