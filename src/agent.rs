@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::mpsc;
 use yaml_rust2::YamlLoader;
 
 use crate::{event::Event, service::Service};
@@ -9,7 +9,7 @@ pub struct Agent {
     pub name: String,
     pub api_key: String,
     pub monitor: bool,
-    pub services: Vec<Arc<Mutex<Service>>>,
+    pub services: Vec<Service>,
     receiver: mpsc::Receiver<Arc<Event>>,
 }
 
@@ -50,9 +50,7 @@ impl Agent {
             expect("`services` field has not be formatted properly in config.\nHint: It should be an array of objects");
 
         for service in services_yaml {
-            services.push(Arc::new(Mutex::new(
-                Service::new(&service, transmitter.clone()).await,
-            )))
+            services.push(Service::new(&service, transmitter.clone()).await)
         }
 
         Self {
@@ -65,10 +63,10 @@ impl Agent {
     }
 
     pub async fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        for service in &self.services {
-            let s = Arc::clone(service);
+        let services = std::mem::take(&mut self.services);
+        for mut service in services.into_iter() {
             tokio::spawn(async move {
-                s.lock().await.run().await;
+                service.run().await;
             });
         }
 

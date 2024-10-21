@@ -1,13 +1,12 @@
-use std::sync::Arc;
-
 use crate::{event::Event, integration::Integration};
-use tokio::sync::{mpsc, Mutex};
+use std::sync::Arc;
+use tokio::sync::mpsc;
 use yaml_rust2::Yaml;
 
 #[derive(Debug)]
 pub struct Service {
     pub name: String,
-    pub integrations: Vec<Arc<Mutex<Integration>>>,
+    pub integrations: Vec<Integration>,
     agent_transmitter: mpsc::Sender<Arc<Event>>,
     receiver: mpsc::Receiver<Arc<Event>>,
 }
@@ -29,9 +28,7 @@ impl Service {
             expect(&format!("Integrations array under {name} has not be formatted properly in config.\nHint: It should be an array of objects"));
 
         for integration in integrations_yaml {
-            integrations.push(Arc::new(Mutex::new(
-                Integration::new(&integration, transmitter.clone(), name).await,
-            )))
+            integrations.push(Integration::new(&integration, transmitter.clone(), name).await)
         }
 
         Self {
@@ -43,10 +40,10 @@ impl Service {
     }
 
     pub async fn run(&mut self) {
-        for integration in &self.integrations {
-            let i = Arc::clone(integration);
+        let integrations = std::mem::take(&mut self.integrations);
+        for mut integration in integrations.into_iter() {
             tokio::spawn(async move {
-                i.lock().await.run().await;
+                integration.run().await;
             });
         }
 
