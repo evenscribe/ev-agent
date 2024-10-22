@@ -7,13 +7,13 @@ use yaml_rust2::Yaml;
 pub struct Service {
     pub name: String,
     pub integrations: Vec<Integration>,
-    agent_transmitter: mpsc::Sender<Arc<Event>>,
-    receiver: mpsc::Receiver<Arc<Event>>,
+    agent_transmitter: mpsc::Sender<Event>,
+    receiver: mpsc::Receiver<Event>,
 }
 
 impl Service {
-    pub async fn new(service: &Yaml, agent_transmitter: mpsc::Sender<Arc<Event>>) -> Self {
-        let (transmitter, receiver) = mpsc::channel::<Arc<Event>>(1000);
+    pub async fn new(service: &Yaml, agent_transmitter: mpsc::Sender<Event>) -> Self {
+        let (transmitter, receiver) = mpsc::channel::<Event>(1000);
         let service = service.as_hash().expect("Service should be a hash");
         let (key, value) = service
             .iter()
@@ -28,7 +28,7 @@ impl Service {
             expect(&format!("Integrations array under {name} has not be formatted properly in config.\nHint: It should be an array of objects"));
 
         for integration in integrations_yaml {
-            integrations.push(Integration::new(&integration, transmitter.clone(), name).await)
+            integrations.push(Integration::new(integration, transmitter.clone(), name).await)
         }
 
         Self {
@@ -50,7 +50,7 @@ impl Service {
         self.aggregate().await;
     }
 
-    pub async fn transmit(&self, event: Arc<Event>) {
+    pub async fn transmit(&self, event: Event) {
         self.agent_transmitter.send(event).await.unwrap();
     }
 

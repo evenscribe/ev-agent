@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use tokio::sync::mpsc;
 use yaml_rust2::YamlLoader;
 
@@ -10,13 +9,14 @@ pub struct Agent {
     pub api_key: String,
     pub monitor: bool,
     pub services: Vec<Service>,
-    receiver: mpsc::Receiver<Arc<Event>>,
+    receiver: mpsc::Receiver<Event>,
+    arena: Vec<Event>,
 }
 
 impl Agent {
     pub async fn new() -> Self {
         println!("[evagent] Intializing agent");
-        let (transmitter, receiver) = mpsc::channel::<Arc<Event>>(1000);
+        let (transmitter, receiver) = mpsc::channel::<Event>(1000);
 
         let path = std::env::var("HOME").expect("Could not find home directory");
         let path = format!("{path}/ev.yaml");
@@ -50,7 +50,7 @@ impl Agent {
             expect("`services` field has not be formatted properly in config.\nHint: It should be an array of objects");
 
         for service in services_yaml {
-            services.push(Service::new(&service, transmitter.clone()).await)
+            services.push(Service::new(service, transmitter.clone()).await)
         }
 
         Self {
@@ -59,6 +59,7 @@ impl Agent {
             monitor,
             services,
             receiver,
+            arena: vec![],
         }
     }
 
@@ -77,7 +78,12 @@ impl Agent {
     pub async fn aggregate(&mut self) {
         loop {
             let event = self.receiver.recv().await.unwrap();
-            println!("{:?}", event);
+            self.arena.push(event);
+
+            if self.arena.len() == 1000 {
+                println!("{:?}", self.arena.len());
+                self.arena.clear();
+            }
         }
     }
 }

@@ -1,6 +1,5 @@
 use crate::event::Event;
 use async_trait::async_trait;
-use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader, SeekFrom};
 use tokio::sync::mpsc;
@@ -12,7 +11,7 @@ use super::Tailer;
 pub struct FileTailer {
     reader: BufReader<File>,
     position: u64,
-    transmiter: mpsc::Sender<Arc<Event>>,
+    transmiter: mpsc::Sender<Event>,
     owner: String, // Name of the service that owns this Integration -> Tailer
     path: String,
 }
@@ -22,7 +21,7 @@ impl FileTailer {
         path: String,
         owner: String, // Name of the service that owns this Integration
         seek_from: SeekFrom,
-        transmiter: mpsc::Sender<Arc<Event>>,
+        transmiter: mpsc::Sender<Event>,
     ) -> Self {
         let file = File::open(&path).await.expect("Failed to open file");
         let mut reader = BufReader::new(file);
@@ -71,12 +70,12 @@ impl Tailer for FileTailer {
                 Ok(bytes_read) => {
                     if bytes_read > 0 {
                         self.transmiter
-                            .send(Arc::new(Event::new(
+                            .send(Event::new(
                                 self.owner.clone(),
                                 "Logs.FileTailer".into(),
                                 line.trim().into(),
                                 1111222,
-                            )))
+                            ))
                             .await
                             .expect("Failed to send event");
                         self.position += bytes_read as u64;

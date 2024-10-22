@@ -1,7 +1,7 @@
 mod tailer;
 
 use crate::event::Event;
-use std::{io::SeekFrom, sync::Arc};
+use std::io::SeekFrom;
 use tailer::{FileTailer, Tailer};
 use tokio::sync::mpsc;
 use yaml_rust2::Yaml;
@@ -21,11 +21,7 @@ pub enum LogSource {
 }
 
 impl LogsIntegration {
-    pub async fn new(
-        config: &Yaml,
-        service_transmitter: mpsc::Sender<Arc<Event>>,
-        owner: &str,
-    ) -> Self {
+    pub async fn new(config: &Yaml, service_transmitter: mpsc::Sender<Event>, owner: &str) -> Self {
         let mut source = None;
         let mut path = None;
         let mut service_name = None;

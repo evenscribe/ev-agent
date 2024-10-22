@@ -20,7 +20,7 @@ pub enum Integration {
 impl Integration {
     pub async fn new(
         integration: &Yaml,
-        service_transmitter: mpsc::Sender<Arc<Event>>,
+        service_transmitter: mpsc::Sender<Event>,
         service_name: &str,
     ) -> Self {
         let integration = integration.as_hash().expect("Integration should be a hash");
